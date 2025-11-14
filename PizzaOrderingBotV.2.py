@@ -1,55 +1,60 @@
+SECRET_NAME = "greg webb" 
+
+CRUST_PRICES = {"thin": 0.0, "regular": 1.0, "stuffed": 3.0}
+TOPPING_COST = 0.75
+
+
 class PizzaOrder:
-    size: str = ""
-    crust: str = ""
-    toppings: List[str] = None
-    delivery: bool = False
-    address: str = ""
-    total: float = 0.0
-    created_at: str = ""
+    
+    def __init__(self):
+        self.size = ""
+        self.crust = ""
+        self.toppings = []
+        self.delivery = False
+        self.address = ""
+        self.total = 0.0
+        self.created_at = datetime.datetime.now().isoformat(timespec='seconds')
 
-    def __post_init__(self):
-        if self.toppings is None:
-            self.toppings = []
-        if not self.created_at:
-            self.created_at = datetime.datetime.now().isoformat(timespec='seconds')
-# Pricing
-SIZE_PRICE = {"small": 8.0, "medium": 10.0, "large": 12.0}
-CRUST_PRICE = {"thin": 0.0, "regular": 1.0, "stuffed": 3.0}
-TOPPING_PRICE = 0.75
-DELIVERY_FEE = 3.0
 
-def ask_choice(prompt: str, options: List[str]) -> str:
+def ask_user_choice(prompt, options): 
     opts = "/".join(options)
-    options_set = {o.lower() for o in options}
+    valid_options = {o.lower() for o in options}
     while True:
         ans = input(f"{prompt} ({opts}): ").strip().lower()
-        if ans in options_set:
+        if ans in valid_options:
             return ans
         print("Invalid choice — try again.")
 
-def yes_no(prompt: str) -> bool:
-    return ask_choice(prompt, ["yes", "no"]) == "yes"
+def is_yes(prompt): 
+    return ask_user_choice(prompt, ["yes", "no"]) == "yes"
 
-def get_toppings() -> List[str]:
+def collect_toppings(): 
     print("Enter toppings one per line (blank to finish). Common toppings: pepperoni, mushrooms, onions, olives, sausage, bacon, peppers")
-    toppings = []
+    toppings_list = [] 
     while True:
         t = input("> ").strip()
-        if t == "":
+        if not t:
             break
-        toppings.append(t)
-    return toppings
+        toppings_list.append(t)
+    return toppings_list
 
-def calculate_total(order: PizzaOrder) -> float:
-    total = SIZE_PRICE[order.size] + CRUST_PRICE[order.crust]
-    total += len(order.toppings) * TOPPING_PRICE
-    if order.delivery:
-        total += DELIVERY_FEE
-    return round(total, 2)
+def calc_pizza_cost(size, crust, topping_count): 
+    if size == "small":
+        base_price = 8.99
+    elif size == "medium":
+        base_price = 14.99
+    elif size == "large":
+        base_price = 17.99
+    else:
+        base_price = 0.0 
+        
+    crust_price = CRUST_PRICES[crust]
+    topping_price = topping_count * TOPPING_COST
+    return round(base_price + crust_price + topping_price, 2)
 
-def save_order_csv(order: PizzaOrder, filename: str = "orders.csv") -> None:
-    fieldnames = ["created_at", "size", "crust", "toppings", "delivery", "address", "total"]
-    row = {
+def save_order(order, file_name="orders.csv"): 
+    fields = ["created_at", "size", "crust", "toppings", "delivery", "address", "total"]
+    data = {
         "created_at": order.created_at,
         "size": order.size,
         "crust": order.crust,
@@ -58,53 +63,78 @@ def save_order_csv(order: PizzaOrder, filename: str = "orders.csv") -> None:
         "address": order.address,
         "total": f"{order.total:.2f}"
     }
+    
+    write_header = False
     try:
-        write_header = False
-        try:
-            with open(filename, "r", newline="", encoding="utf-8") as f:
-                pass
-        except FileNotFoundError:
-            write_header = True
-        with open(filename, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+        with open(file_name, "r", newline="", encoding="utf-8") as f:
+            pass
+    except FileNotFoundError:
+        write_header = True
+            
+    try:
+        with open(file_name, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fields)
             if write_header:
                 writer.writeheader()
-            writer.writerow(row)
+            writer.writerow(data)
     except Exception as e:
         print(f"Warning: could not save order to CSV ({e})")
 
-def print_summary(order: PizzaOrder) -> None:
+def show_summary(order): 
     print("\n--- Order Summary ---")
-    print(f"Size: {order.size.capitalize()}   Crust: {order.crust.capitalize()}")
+    print(f"Size: {order.size.capitalize()}   Crust: {order.crust.capitalize()}")
     print(f"Toppings: {', '.join(order.toppings) if order.toppings else 'none'}")
     print(f"Delivery: {'Yes' if order.delivery else 'No'}")
     if order.delivery:
         print(f"Address: {order.address}")
+        
+    if order.total >= 50.0:
+        print("Congrats! You earned a $1 off coupon for your next order.") 
+    else:
+        pass 
+
     print(f"Total: ${order.total:.2f}")
+
 
 def main():
     print("Welcome to EduPizza (Python)!")
-    while True:
-        order = PizzaOrder()
-        order.size = ask_choice("Choose size", list(SIZE_PRICE.keys()))
-        order.crust = ask_choice("Choose crust", list(CRUST_PRICE.keys()))
-        order.toppings = get_toppings()
-        order.delivery = yes_no("Delivery?")
-        if order.delivery:
-            order.address = input("Enter delivery address: ").strip()
-        order.total = calculate_total(order)
-        print_summary(order)
+    
+    user_name = input("What's your name? (first and last): ").strip()
+    
+    if user_name.lower() == SECRET_NAME:
+        print(f"Hey {user_name}, welcome back! You've unlocked the special greeting!")
+    else:
+        print(f"Hello {user_name}, thanks for stopping by!")
 
-        if yes_no("Confirm order?"):
+    while True:
+        order = PizzaOrder() 
+
+        order.size = ask_user_choice("Choose size", ["small", "medium", "large"])
+        order.crust = ask_user_choice("Choose crust", list(CRUST_PRICES.keys()))
+        order.toppings = collect_toppings()
+
+        order.delivery = is_yes("Delivery?")
+        
+        if order.delivery:
+            deliveryFee = 5.0
+            order.address = input("Enter delivery address: ").strip()
+        else:
+            deliveryFee = 0.0
+
+        pizza_cost = calc_pizza_cost(order.size, order.crust, len(order.toppings))
+        order.total = round(pizza_cost + deliveryFee, 2)
+
+        show_summary(order)
+
+        if is_yes("Confirm order?"):
             print("Thanks — your order is placed!")
-            # Save order (optional)
-            if yes_no("Save this order to orders.csv?"):
-                save_order_csv(order)
+            if is_yes("Save this order to orders.csv?"):
+                save_order(order)
                 print("Order saved to orders.csv")
         else:
             print("Order cancelled.")
 
-        if not yes_no("Would you like to place another order?"):
+        if not is_yes("Would you like to place another order?"):
             print("Goodbye!")
             break
 
